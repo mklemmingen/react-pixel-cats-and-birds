@@ -14,6 +14,61 @@ export const SCENE_ATTR = 'data-pixel-scene';
 
 const imageCache = new Map();
 
+const INTERACTIVE = [
+    'a[href]', 'button', 'input', 'select', 'textarea', 'label', 'summary', 'details',
+    'video', 'audio', 'iframe', 'object', 'embed',
+    '[role="button"]', '[role="link"]', '[role="checkbox"]', '[role="tab"]', '[role="menuitem"]',
+    '[contenteditable]:not([contenteditable="false"])', '[onclick]',
+].join(',');
+const MEDIA = new Set(['IMG', 'VIDEO', 'CANVAS', 'SVG', 'PICTURE', 'IFRAME', 'OBJECT', 'EMBED']);
+
+function alpha(color) {
+    if (!color || color === 'transparent') return 0;
+    const m = color.match(/rgba?\(([^)]+)\)/);
+    if (!m) return 1;
+    const parts = m[1].split(/[\s,/]+/).filter(Boolean);
+    if (parts.length < 4) return 1;
+    const a = parts[3];
+    return a.endsWith('%') ? parseFloat(a) / 100 : parseFloat(a);
+}
+
+function paints(style) {
+    return alpha(style.backgroundColor) > 0.05 || (style.backgroundImage && style.backgroundImage !== 'none');
+}
+
+/** true when nothing between `target` and the element that contains `canvas` hides it */
+export function isSeeThrough(target, canvas) {
+    if (!(target instanceof Element)) return false;
+    if (target.closest(INTERACTIVE)) return false;
+    for (let el = target; el && !el.contains(canvas); el = el.parentElement) {
+        if (MEDIA.has(el.tagName.toUpperCase())) return false;
+        const style = getComputedStyle(el);
+        if (paints(style)) return false;
+        // cards often paint their background with a pseudo-element
+        for (const pseudo of ['::before', '::after']) {
+            const ps = getComputedStyle(el, pseudo);
+            if (ps.content && ps.content !== 'none' && ps.content !== 'normal' && paints(ps)) return false;
+        }
+    }
+    return true;
+}
+
+// pointer cursor on <html> while hovering a sprite through content; one scene owns it at a time
+let cursorOwner = null;
+
+function setRootCursor(owner, on) {
+    const root = document.documentElement;
+    if (on) {
+        if (cursorOwner !== owner) {
+            cursorOwner = owner;
+            root.style.cursor = 'pointer';
+        }
+    } else if (cursorOwner === owner) {
+        cursorOwner = null;
+        root.style.cursor = '';
+    }
+}
+
 /** shared image loader: {img, ready}. Failed images stay not-ready and are simply skipped. */
 export function loadImage(url) {
     let entry = imageCache.get(url);
@@ -188,10 +243,43 @@ export function runScene(canvas, scene) {
         forward('click', e);
     };
 
+    // Content often sits on top of the canvas (a hero wrapper, a full-width section). A click
+    // that lands on such content still reaches a sprite underneath when everything between the
+    // click target and the canvas is see-through (no background, not a link/button/field/media).
+    const inRect = (e) => {
+        const r = canvas.getBoundingClientRect();
+        return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+    };
+    const throughContent = (e) => {
+        if (!visible || !spawned || disposed) return null;
+        const target = e.target;
+        if (!target || target === canvas || target.hasAttribute?.(SCENE_ATTR)) return null;
+        if (!inRect(e)) return null;
+        const entity = scene.hit(...local(e)); // cheap test first
+        if (!entity || !isSeeThrough(target, canvas)) return null;
+        return entity;
+    };
+
+    const onDocMove = (e) => {
+        setRootCursor(canvas, !!throughContent(e));
+    };
+
+    const onDocClick = (e) => {
+        if (e.pixelSceneHandled || e.defaultPrevented || e.button !== 0) return;
+        if (window.getSelection?.()?.toString()) return; // user was selecting text
+        const entity = throughContent(e);
+        if (!entity) return;
+        e.pixelSceneHandled = true; // one sprite per click when scenes overlap
+        scene.onHit(entity);
+        if (reducedMotion) draw();
+    };
+
     if (scene.interactive) {
         canvas.style.pointerEvents = 'auto';
         canvas.addEventListener('mousemove', onMove, {passive: true});
         canvas.addEventListener('click', onClick);
+        document.addEventListener('mousemove', onDocMove, {passive: true});
+        document.addEventListener('click', onDocClick);
     } else {
         canvas.style.pointerEvents = 'none';
     }
@@ -203,6 +291,9 @@ export function runScene(canvas, scene) {
         ro.disconnect();
         canvas.removeEventListener('mousemove', onMove);
         canvas.removeEventListener('click', onClick);
+        document.removeEventListener('mousemove', onDocMove);
+        document.removeEventListener('click', onDocClick);
+        setRootCursor(canvas, false);
         canvas.removeAttribute(SCENE_ATTR);
         canvas.width = 0;
         canvas.height = 0;

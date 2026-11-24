@@ -113,7 +113,7 @@ Both accept `{context, destination}` to render into an `OfflineAudioContext`, e.
 ## Development
 
 ```bash
-npm test             # 140 unit tests: sprite sheets, cat/bird behaviour, audio analysis, components
+npm test             # 149 unit tests: sprite sheets, cat/bird behaviour, audio analysis, components
 npm run playground   # visual checks at http://localhost:5178/playground/
 ```
 

@@ -1,6 +1,6 @@
 {
   "name": "react-pixel-cats-and-birds",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Animated pixel-art cats and birds for React: background sprites that wander, sit, lie down and react to clicks with synthesised meows and chirps. No audio files, zero dependencies. Sprites by Pop Shop Packs.",
   "keywords": [
     "react",

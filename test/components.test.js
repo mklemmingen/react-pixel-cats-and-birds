@@ -85,7 +85,7 @@ beforeEach(() => {
     };
     Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', {configurable: true, get: () => 1000});
     Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', {configurable: true, get: () => 600});
-    HTMLCanvasElement.prototype.getBoundingClientRect = () => ({left: 0, top: 0, width: 1000, height: 600});
+    HTMLCanvasElement.prototype.getBoundingClientRect = () => ({left: 0, top: 0, right: 1000, bottom: 600, width: 1000, height: 600});
     window.matchMedia = () => ({matches: false});
     document.elementFromPoint = () => null; // jsdom has no layout
 
@@ -276,5 +276,106 @@ describe('stacked scenes', () => {
             expect(meow).toHaveBeenCalledTimes(1);
         }
         expect(birdCanvas.style.pointerEvents).toBe('auto'); // restored after probing
+    });
+});
+
+describe('clicks through content on top of the canvas', () => {
+    async function setup(overlayHtml, overlayStyle = '') {
+        const sound = vi.fn();
+        act(() => root.render(createElement(Cats, {count: 1, sound})));
+        const canvas = host.querySelector('canvas');
+        becomeVisible();
+        await frames(2);
+        const [, , , , , dx, dy] = draws[draws.length - 1].args;
+        const overlay = document.createElement('div');
+        overlay.setAttribute('style', `position:absolute;inset:0;${overlayStyle}`);
+        overlay.innerHTML = overlayHtml;
+        host.appendChild(overlay);
+        const click = (el) => act(() => el.dispatchEvent(new MouseEvent('click', {
+            bubbles: true, button: 0, clientX: dx + 48, clientY: dy + 48,
+        })));
+        return {sound, overlay, click, canvas};
+    }
+
+    it('a click on a transparent wrapper over a cat reaches the cat', async () => {
+        const {sound, overlay, click} = await setup('<div class="hero"><p>text</p></div>');
+        click(overlay.querySelector('.hero'));
+        expect(sound).toHaveBeenCalledTimes(1);
+    });
+
+    it('content with a background hides the cat: no meow', async () => {
+        const {sound, overlay, click} = await setup('<div class="card" style="background: white"><p>text</p></div>');
+        click(overlay.querySelector('p'));
+        expect(sound).not.toHaveBeenCalled();
+    });
+
+    it('a wrapper with a background image hides the cat too', async () => {
+        const {sound, overlay, click} = await setup('<span>x</span>', 'background-image: url(x.png)');
+        click(overlay.querySelector('span'));
+        expect(sound).not.toHaveBeenCalled();
+    });
+
+    it('links, buttons and inputs keep their clicks', async () => {
+        const {sound, overlay, click} = await setup('<a href="#x"><span>link</span></a><button>b</button><input>');
+        click(overlay.querySelector('a span'));
+        click(overlay.querySelector('button'));
+        click(overlay.querySelector('input'));
+        expect(sound).not.toHaveBeenCalled();
+    });
+
+    it('ignores clicks that end a text selection', async () => {
+        const {sound, overlay, click} = await setup('<p>select me</p>');
+        const sel = window.getSelection;
+        window.getSelection = () => ({toString: () => 'select'});
+        click(overlay.querySelector('p'));
+        window.getSelection = sel;
+        expect(sound).not.toHaveBeenCalled();
+    });
+
+    it('a direct click on the canvas is handled once, not twice', async () => {
+        const {sound, canvas} = await setup('');
+        const [, , , , , dx, dy] = draws[draws.length - 1].args;
+        act(() => canvas.dispatchEvent(new MouseEvent('click', {bubbles: true, button: 0, clientX: dx + 48, clientY: dy + 48})));
+        expect(sound).toHaveBeenCalledTimes(1);
+    });
+
+    it('hovering a cat through content shows a pointer cursor, leaving it restores', async () => {
+        const {overlay} = await setup('<div class="hero"></div>');
+        const [, , , , , dx, dy] = draws[draws.length - 1].args;
+        const hero = overlay.querySelector('.hero');
+        act(() => hero.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: dx + 48, clientY: dy + 48})));
+        expect(document.documentElement.style.cursor).toBe('pointer');
+        act(() => hero.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: dx + 400, clientY: dy + 400})));
+        expect(document.documentElement.style.cursor).toBe('');
+    });
+
+    it('unmount removes the document listeners', async () => {
+        const {sound, overlay, click} = await setup('<div class="hero"></div>');
+        const hero = overlay.querySelector('.hero');
+        act(() => root.render(createElement('div')));
+        click(hero);
+        expect(sound).not.toHaveBeenCalled();
+    });
+});
+
+describe('isSeeThrough', () => {
+    it('treats cards painted by ::before as opaque', async () => {
+        const {isSeeThrough} = await import('../src/canvasScene.js');
+        const wrap = document.createElement('div');
+        const canvas = document.createElement('canvas');
+        const card = document.createElement('div');
+        card.className = 'pseudo-card';
+        wrap.append(canvas, card);
+        document.body.append(wrap);
+        const real = window.getComputedStyle;
+        window.getComputedStyle = (el, pseudo) => (pseudo && el === card
+            ? {content: '""', backgroundColor: 'rgb(255, 255, 255)', backgroundImage: 'none'}
+            : real(el, pseudo));
+        try {
+            expect(isSeeThrough(card, canvas)).toBe(false);
+        } finally {
+            window.getComputedStyle = real;
+            wrap.remove();
+        }
     });
 });
