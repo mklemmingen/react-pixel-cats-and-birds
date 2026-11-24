@@ -1,14 +1,14 @@
-# react-pixel-cats
+# react-pixel-cats-and-birds
 
 Animated pixel-art **cats and birds for React**: background sprites that wander, sit, lie down and
 react to clicks with **synthesised meows and bird calls**. No audio files, zero dependencies.
 
 ```bash
-npm i react-pixel-cats
+npm i react-pixel-cats-and-birds
 ```
 
 ```jsx
-import {Cats, Birds} from 'react-pixel-cats';
+import {Cats, Birds} from 'react-pixel-cats-and-birds';
 
 export default function Hero() {
   return (
@@ -52,7 +52,7 @@ a server component page or layout:
 
 ```jsx
 // app/page.jsx
-import {Cats} from 'react-pixel-cats';
+import {Cats} from 'react-pixel-cats-and-birds';
 
 export default function Page() {
   return (
@@ -98,7 +98,7 @@ Stack `<Cats>` and `<Birds>` freely: a click that misses every bird is passed on
 ## Sounds without the components
 
 ```js
-import {playMeow, playChirp, setVolume, MEOW_PRESETS} from 'react-pixel-cats';
+import {playMeow, playChirp, setVolume, MEOW_PRESETS} from 'react-pixel-cats-and-birds';
 
 playMeow();                // random preset
 playMeow('kittenMew');     // 'meow' | 'kittenMew' | 'whinyMeow' | 'shortMew'

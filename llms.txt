@@ -1,4 +1,4 @@
-# react-pixel-cats
+# react-pixel-cats-and-birds
 
 > React components that add animated pixel-art cats and birds as a page background. Cats wander,
 > sit, look around and lie down; birds fly, land and peck. Clicking plays synthesised meows and
@@ -8,12 +8,12 @@
 
 ## Install
 
-npm i react-pixel-cats
+npm i react-pixel-cats-and-birds
 
 ## Usage
 
 ```jsx
-import {Cats, Birds} from 'react-pixel-cats';
+import {Cats, Birds} from 'react-pixel-cats-and-birds';
 
 <section style={{position: 'relative', minHeight: 600}}>
   <Cats count={10} avoidCenter />
@@ -31,6 +31,6 @@ import {Cats, Birds} from 'react-pixel-cats';
 
 ## Docs
 
-- README: https://github.com/mklemmingen/react-pixel-cats#readme
+- README: https://github.com/mklemmingen/react-pixel-cats-and-birds#readme
 - Types: index.d.ts
 - Credits / sprite licence: CREDITS.md

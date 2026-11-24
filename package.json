@@ -1,5 +1,5 @@
 {
-  "name": "react-pixel-cats",
+  "name": "react-pixel-cats-and-birds",
   "version": "0.1.0",
   "description": "Animated pixel-art cats and birds for React: background sprites that wander, sit, lie down and react to clicks with synthesised meows and chirps. No audio files, zero dependencies. Sprites by Pop Shop Packs.",
   "keywords": [
@@ -66,12 +66,12 @@
     }
   ],
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://github.com/mklemmingen/react-pixel-cats#readme",
+  "homepage": "https://github.com/mklemmingen/react-pixel-cats-and-birds#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mklemmingen/react-pixel-cats.git"
+    "url": "git+https://github.com/mklemmingen/react-pixel-cats-and-birds.git"
   },
-  "bugs": "https://github.com/mklemmingen/react-pixel-cats/issues",
+  "bugs": "https://github.com/mklemmingen/react-pixel-cats-and-birds/issues",
   "engines": {
     "node": ">=18"
   }
