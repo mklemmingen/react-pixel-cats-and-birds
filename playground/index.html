@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>react-pixel-cats playground</title>
+    <script type="importmap">
+        {
+          "imports": {
+            "react": "https://esm.sh/react@19.1.0",
+            "react-dom/client": "https://esm.sh/react-dom@19.1.0/client"
+          }
+        }
+    </script>
+    <style>
+        :root { --bg: #f7f5f0; --fg: #222; --muted: #666; --card: #fff; --line: #ddd; color-scheme: light dark; }
+        @media (prefers-color-scheme: dark) { :root { --bg: #1b1b1a; --fg: #eee; --muted: #aaa; --card: #262625; --line: #3a3a38; } }
+        body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+        main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+        h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+        h2 { font-size: 17px; margin: 32px 0 8px; }
+        p.note { color: var(--muted); margin: 4px 0 12px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+        .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+        button, select { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+        .grid { display: grid; gap: 6px; }
+        .cell { text-align: center; font-size: 11px; color: var(--muted); }
+        .cell canvas { image-rendering: pixelated; background: repeating-conic-gradient(#0001 0 25%, transparent 0 50%) 0 0 / 12px 12px; border-radius: 4px; }
+        .stage { position: relative; height: 420px; overflow: hidden; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+        .stage .content { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 18px; background: var(--bg); border-radius: 8px; border: 1px solid var(--line); z-index: 2; }
+        #spec { width: 100%; height: 140px; display: block; border-radius: 8px; background: var(--card); border: 1px solid var(--line); }
+        .pass { color: #2a7; } .fail { color: #c33; }
+        footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+        a { color: inherit; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>react-pixel-cats playground</h1>
+    <p class="note">Visual checks for the sprites, the behaviour and the synthesised sounds. Run <code>npm test</code> for the automated suite.</p>
+
+    <h2>1. Cat animations, all 8 directions</h2>
+    <p class="note">Each idle pose plays in, freezes, then plays out (the label shows the phase). Walk and run loop. Rows are S, SW, W, NW, N, NE, E, SE.</p>
+    <div class="card">
+        <div class="row">
+            <label>Colour <select id="catColor"></select></label>
+            <button id="catPause">Pause</button>
+            <span id="catPhase" class="note"></span>
+        </div>
+        <div id="catGrid" class="grid"></div>
+    </div>
+
+    <h2>2. Bird animations</h2>
+    <p class="note">Every species: flying, pecking, resting, hit. Click a bird to hear its call.</p>
+    <div class="card"><div id="birdGrid" class="grid"></div></div>
+
+    <h2>3. Live scene</h2>
+    <p class="note">Cats and birds stacked behind content. Click a cat (meow, it gets up and runs) or a bird (chirp, it bolts). Clicks that miss the birds reach the cats underneath.</p>
+    <div class="row">
+        <button id="sceneCats">Cats: 12</button>
+        <button id="sceneBirds">Birds: 16</button>
+        <button id="sceneSound">Sound: on</button>
+    </div>
+    <div class="stage" id="stage"><div class="content">Content sits on top</div></div>
+
+    <h2>4. Sound board</h2>
+    <p class="note">Every meow preset and every bird call, with a live spectrogram (0-10 kHz).</p>
+    <div class="card">
+        <div class="row" id="meowButtons"></div>
+        <div class="row" id="birdButtons"></div>
+        <canvas id="spec" width="1000" height="140"></canvas>
+    </div>
+
+    <footer>
+        Sprites: <a href="https://pop-shop-packs.itch.io/cats-pixel-asset-pack">Cats</a> and
+        <a href="https://pop-shop-packs.itch.io/garden-birds-pixel-character-asset-pack">Garden Birds</a> pixel asset packs by
+        <a href="https://pop-shop-packs.itch.io/">Pop Shop Packs</a>, used with permission.
+    </footer>
+</main>
+
+<script type="module">
+    import {createElement} from 'react';
+    import {createRoot} from 'react-dom/client';
+    import {
+        Birds, Cats, BIRD_SHEETS, CAT_SHEETS, MEOW_PRESETS, CHIRP_SPECIES, playChirp, playMeow,
+    } from '../src/index.js';
+    import {IDLES, MOVES, DIRECTIONS, SPRITE_FPS} from '../src/core/catSim.js';
+    import {BIRD_ANIMS} from '../src/core/birdSim.js';
+    import {getAudio} from '../src/audio/engine.js';
+
+    const load = (url) => new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url; });
+
+    /* ---------- 1. cat inspector ---------- */
+    const catColor = document.getElementById('catColor');
+    for (const c of Object.keys(CAT_SHEETS)) catColor.add(new Option(c, c));
+    catColor.value = 'orange-0';
+    const columns = [
+        ...IDLES.map(i => ({label: i.name, type: 'idle', tiles: i.tiles})),
+        {label: 'walk', type: 'loop', move: MOVES.walking},
+        {label: 'run', type: 'loop', move: MOVES.running},
+    ];
+    const grid = document.getElementById('catGrid');
+    grid.style.gridTemplateColumns = `40px repeat(${columns.length}, 1fr)`;
+    grid.append(Object.assign(document.createElement('div'), {className: 'cell'}));
+    for (const col of columns) grid.append(Object.assign(document.createElement('div'), {className: 'cell', textContent: col.label}));
+    const cells = [];
+    for (let band = 0; band < 8; band++) {
+        grid.append(Object.assign(document.createElement('div'), {className: 'cell', textContent: DIRECTIONS[band]}));
+        for (const col of columns) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            const cv = Object.assign(document.createElement('canvas'), {width: 64, height: 64});
+            cell.append(cv);
+            grid.append(cell);
+            cells.push({cv, ctx: cv.getContext('2d'), band, col});
+        }
+    }
+    let catSheet = await load(CAT_SHEETS[catColor.value]);
+    catColor.onchange = async () => { catSheet = await load(CAT_SHEETS[catColor.value]); };
+    let paused = false;
+    document.getElementById('catPause').onclick = (e) => { paused = !paused; e.target.textContent = paused ? 'Play' : 'Pause'; };
+    const HOLD = 1.5;
+    let t0 = performance.now();
+    let frozen = 0;
+    function idleFrame(tiles, t) {
+        const n = tiles.length;
+        const enter = n / SPRITE_FPS;
+        const cycle = enter + HOLD + enter + 0.5;
+        const u = t % cycle;
+        if (u < enter) return {tile: tiles[Math.floor(u * SPRITE_FPS)], phase: 'enter'};
+        if (u < enter + HOLD) return {tile: tiles[n - 1], phase: 'hold'};
+        if (u < enter * 2 + HOLD) return {tile: tiles[n - 1 - Math.floor((u - enter - HOLD) * SPRITE_FPS)], phase: 'exit'};
+        return {tile: tiles[0], phase: 'stand'};
+    }
+    function drawCats(now) {
+        if (paused) { frozen = now - t0; } else t0 = now - frozen;
+        const t = (now - t0) / 1000;
+        let phases = new Set();
+        for (const {ctx, band, col} of cells) {
+            let tile;
+            if (col.type === 'idle') { const f = idleFrame(col.tiles, t); tile = f.tile; phases.add(`${col.label}: ${f.phase}`); }
+            else tile = [col.move.block, col.move.row, Math.floor(t * SPRITE_FPS) % col.move.frames];
+            ctx.imageSmoothingEnabled = false;
+            ctx.clearRect(0, 0, 64, 64);
+            const [b, r, c] = tile;
+            ctx.drawImage(catSheet, b * 128 + c * 32, band * 64 + r * 32, 32, 32, 0, 0, 64, 64);
+        }
+        document.getElementById('catPhase').textContent = [...phases].join(' · ');
+        requestAnimationFrame(drawCats);
+    }
+    requestAnimationFrame(drawCats);
+
+    /* ---------- 2. bird inspector ---------- */
+    const birdGrid = document.getElementById('birdGrid');
+    const states = Object.keys(BIRD_ANIMS);
+    birdGrid.style.gridTemplateColumns = `110px repeat(${states.length}, 1fr)`;
+    birdGrid.append(Object.assign(document.createElement('div'), {className: 'cell'}));
+    for (const s of states) birdGrid.append(Object.assign(document.createElement('div'), {className: 'cell', textContent: s}));
+    const birdCells = [];
+    for (const [id, url] of Object.entries(BIRD_SHEETS)) {
+        const label = Object.assign(document.createElement('button'), {textContent: id});
+        label.onclick = () => playChirp(id);
+        birdGrid.append(label);
+        const img = await load(url);
+        for (const s of states) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            const cv = Object.assign(document.createElement('canvas'), {width: 48, height: 48});
+            cell.append(cv);
+            birdGrid.append(cell);
+            birdCells.push({ctx: cv.getContext('2d'), img, anim: BIRD_ANIMS[s]});
+        }
+    }
+    (function drawBirds(now) {
+        for (const {ctx, img, anim} of birdCells) {
+            const col = anim.cols[Math.floor(now / 1000 * anim.fps) % anim.cols.length];
+            ctx.imageSmoothingEnabled = false;
+            ctx.clearRect(0, 0, 48, 48);
+            ctx.drawImage(img, col * 16, anim.row * 16, 16, 16, 0, 0, 48, 48);
+        }
+        requestAnimationFrame(drawBirds);
+    })(0);
+
+    /* ---------- 3. live scene ---------- */
+    const stage = createRoot(document.getElementById('stage').appendChild(document.createElement('div')));
+    const counts = {cats: [12, 4, 30, 0], birds: [16, 6, 40, 0]};
+    let ci = 0, bi = 0, sound = true;
+    const renderStage = () => stage.render(createElement('div', {style: {position: 'absolute', inset: 0}},
+        createElement(Cats, {count: counts.cats[ci], sound: sound ? 'synth' : false}),
+        createElement(Birds, {count: counts.birds[bi], sound: sound ? 'synth' : false}),
+    ));
+    renderStage();
+    document.getElementById('sceneCats').onclick = (e) => { ci = (ci + 1) % 4; e.target.textContent = `Cats: ${counts.cats[ci]}`; renderStage(); };
+    document.getElementById('sceneBirds').onclick = (e) => { bi = (bi + 1) % 4; e.target.textContent = `Birds: ${counts.birds[bi]}`; renderStage(); };
+    document.getElementById('sceneSound').onclick = (e) => { sound = !sound; e.target.textContent = `Sound: ${sound ? 'on' : 'off'}`; renderStage(); };
+
+    /* ---------- 4. sound board + spectrogram ---------- */
+    const spec = document.getElementById('spec');
+    const sg = spec.getContext('2d');
+    let analyser = null, raf = 0;
+    function startSpec() {
+        const audio = getAudio();
+        if (!audio) return;
+        if (!analyser) { analyser = audio.ctx.createAnalyser(); analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0; audio.gain.connect(analyser); }
+        cancelAnimationFrame(raf);
+        sg.clearRect(0, 0, spec.width, spec.height);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const maxBin = Math.floor(10000 / (audio.ctx.sampleRate / analyser.fftSize));
+        const color = getComputedStyle(document.body).color;
+        let x = 0;
+        (function step() {
+            analyser.getByteFrequencyData(data);
+            for (let y = 0; y < spec.height; y++) {
+                const v = data[Math.floor((1 - y / spec.height) * maxBin)] / 255;
+                if (v > 0.2) { sg.globalAlpha = v; sg.fillStyle = color; sg.fillRect(x, y, 3, 1); }
+            }
+            sg.globalAlpha = 1; x += 3;
+            if (x < spec.width) raf = requestAnimationFrame(step);
+        })();
+    }
+    const meowRow = document.getElementById('meowButtons');
+    for (const name of Object.keys(MEOW_PRESETS)) {
+        const b = Object.assign(document.createElement('button'), {textContent: `meow: ${name}`});
+        b.onclick = () => { playMeow(name); startSpec(); };
+        meowRow.append(b);
+    }
+    const birdRow = document.getElementById('birdButtons');
+    for (const id of CHIRP_SPECIES) {
+        const b = Object.assign(document.createElement('button'), {textContent: id});
+        b.onclick = () => { playChirp(id); startSpec(); };
+        birdRow.append(b);
+    }
+</script>
+</body>
+</html>

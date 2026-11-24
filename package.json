@@ -1,0 +1,78 @@
+{
+  "name": "react-pixel-cats",
+  "version": "0.1.0",
+  "description": "Animated pixel-art cats and birds for React: background sprites that wander, sit, lie down and react to clicks with synthesised meows and chirps. No audio files, zero dependencies. Sprites by Pop Shop Packs.",
+  "keywords": [
+    "react",
+    "pixel-art",
+    "cats",
+    "cat",
+    "birds",
+    "sprite",
+    "spritesheet",
+    "animation",
+    "canvas",
+    "background",
+    "idle-animation",
+    "interactive",
+    "web-audio",
+    "meow",
+    "synth",
+    "nextjs",
+    "easter-egg",
+    "cozy"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "sprites",
+    "index.d.ts",
+    "CREDITS.md",
+    "llms.txt"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "playground": "node playground/serve.js",
+    "gen:sprites": "python3 scripts/gen-sprites.py"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.1",
+    "node-web-audio-api": "^2.3.0",
+    "pngjs": "^7.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vitest": "^5.1.1"
+  },
+  "author": "mklemmingen",
+  "contributors": [
+    {
+      "name": "Pop Shop Packs (sprite art)",
+      "url": "https://pop-shop-packs.itch.io/"
+    }
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/mklemmingen/react-pixel-cats#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mklemmingen/react-pixel-cats.git"
+  },
+  "bugs": "https://github.com/mklemmingen/react-pixel-cats/issues",
+  "engines": {
+    "node": ">=18"
+  }
+}

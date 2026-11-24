@@ -1,0 +1,36 @@
+# react-pixel-cats
+
+> React components that add animated pixel-art cats and birds as a page background. Cats wander,
+> sit, look around and lie down; birds fly, land and peck. Clicking plays synthesised meows and
+> species-specific bird calls (Web Audio API, no audio files). Zero dependencies, React >= 18,
+> works in Next.js App Router, Vite, Parcel, webpack 5. Sprites by Pop Shop Packs (used with
+> permission, not MIT).
+
+## Install
+
+npm i react-pixel-cats
+
+## Usage
+
+```jsx
+import {Cats, Birds} from 'react-pixel-cats';
+
+<section style={{position: 'relative', minHeight: 600}}>
+  <Cats count={10} avoidCenter />
+  <Birds count={16} species={['crow', 'cardinal']} />
+  <div style={{position: 'relative'}}>content on top</div>
+</section>
+```
+
+- Components render a canvas that fills the nearest positioned parent; put content after them.
+- `<Cats>` props: count, colors, sheets, variety, scale, avoidCenter, sound ('synth' | false | fn), interactive, maxFps, className, style.
+- `<Birds>` props: count, species, scale, sound, interactive, maxFps, className, style.
+- Bird species: blueJay, cardinal, cedarWaxwing, chickadee, crow, houseFinch, hummingbird, magpie, redRobin, stellersJay, whiteDove, woodThrush.
+- Sounds only: `playMeow(preset?)` with presets meow, kittenMew, whinyMeow, shortMew; `playChirp(species?)`; `setVolume(0..1)`; `setMuted(bool)`.
+- Audio needs a user gesture first (browser autoplay rules).
+
+## Docs
+
+- README: https://github.com/mklemmingen/react-pixel-cats#readme
+- Types: index.d.ts
+- Credits / sprite licence: CREDITS.md
