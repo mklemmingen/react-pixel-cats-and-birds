@@ -1,3 +1,10 @@
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/mklemmingen/react-pixel-cats-and-birds/main/docs/cats-and-birds-banner-light.gif">
+<img src="https://raw.githubusercontent.com/mklemmingen/react-pixel-cats-and-birds/main/docs/cats-and-birds-banner-dark.gif" alt="Pixel-art cats and birds walking, flying and resting across the page" width="100%">
+</picture>
+</p>
+
 # react-pixel-cats-and-birds
 
 Animated pixel-art **cats and birds for React**: background sprites that wander, sit, lie down and
